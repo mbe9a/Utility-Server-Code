@@ -5,6 +5,7 @@ August 2017
 """
 
 import visa
+import csv
 
 display_combos = {'A1B1': 'L - D', 'A1B2': 'L - Q', 'A1B3': 'L - ESR/G', 'A2B1': 'C - D', 'A2B2': 'C - Q',
                   'A2B3': 'C - ESR/G', 'A3B1': 'R - X/B', 'A3B2': 'R - L/C', 'A3B3': 'R - X/B',
@@ -53,8 +54,12 @@ class LCRMeter(object):
     def __init__(self):
         rm = visa.ResourceManager()
         self.inst = rm.open_resource('GPIB0::17::INSTR')
-        self.z = {}
-        self.cd = {}
+        self.inst.timeout = 5000
+        self.measurements = {}
+
+    def new_measurement(self, name, wafer=''):
+        m = LRCMeasurement(name, wafer=wafer)
+        self.measurements[m.name] = m
 
     def change_display(self, combination, p=True):
         code = 'A' + str(combination[0]) +'B' + str(combination[1])
@@ -260,30 +265,111 @@ class LCRMeter(object):
         formatted1 = float(rstr.split(',')[0][5:])
         formatted2 = float(rstr.split(',')[1][2:])
         # looks really dumb but this prevents outputting a negative zero
-        if formatted1 == 0.0:
-            formatted1 = 0.0
-        if formatted2 == 0.0:
-            formatted2 = 0.0
-        return formatted1, formatted2
+        # if formatted1 == 0.0:
+        #     formatted1 = 0.0
+        # if formatted2 == 0.0:
+        #     formatted2 = 0.0
+        return formatted1, formatted2, rstr
 
-    def sweep_z(self):
+    def sweep(self):
         values = {}
+        for freq in sweep_kHz:
+            self.frequency_step((freq, 'kHz'), p=False)
+            values[str(freq) + 'kHz'] = self.output_display()
+        for freq in sweep_MHz:
+            self.frequency_step((freq, 'MHz'), p=False)
+            values[str(freq) + 'MHz'] = self.output_display()
+        return values
+
+    def sweep_z(self, m):
         self.change_display((4, 1), p=False)
-        for freq in sweep_kHz:
-            self.frequency_step((freq, 'kHz'), p=False)
-            values[str(freq) + 'kHz'] = self.output_display()
-        for freq in sweep_MHz:
-            self.frequency_step((freq, 'MHz'), p=False)
-            values[str(freq) + 'MHz'] = self.output_display()
-        self.z = values
+        m.z = self.sweep()
 
-    def sweep_cd(self):
-        values = {}
+    def sweep_cd(self, m):
         self.change_display((2, 1), p=False)
-        for freq in sweep_kHz:
-            self.frequency_step((freq, 'kHz'), p=False)
-            values[str(freq) + 'kHz'] = self.output_display()
-        for freq in sweep_MHz:
-            self.frequency_step((freq, 'MHz'), p=False)
-            values[str(freq) + 'MHz'] = self.output_display()
-        self.cd = values
+        m.cd = self.sweep()
+
+    def sweep_cq(self, m):
+        self.change_display((2, 2), p=False)
+        m.cq = self.sweep()
+
+    def sweep_cesr_g(self, m):
+        self.change_display((2, 3), p=False)
+        m.cesr_g = self.sweep()
+
+    def sweep_ld(self, m):
+        self.change_display((1, 1), p=False)
+        m.ld = self.sweep()
+
+    def sweep_lq(self, m):
+        self.change_display((1, 2), p=False)
+        m.lq = self.sweep()
+
+    def sweep_lesr_g(self, m):
+        self.change_display((1, 3), p=False)
+        m.lesr_g = self.sweep()
+
+    def sweep_rx_b(self, m):
+        self.change_display((3, 1), p=False)
+        m.rx_b = self.sweep()
+
+    def sweep_rl_c(self, m):
+        self.change_display((3, 2), p=False)
+        m.rl_c = self.sweep()
+
+    def full_measurement(self, m):
+        self.sweep_z(m)
+        self.sweep_cd(m)
+        self.sweep_cq(m)
+        self.sweep_cesr_g(m)
+        self.sweep_ld(m)
+        self.sweep_lq(m)
+        self.sweep_lesr_g(m)
+        self.sweep_rx_b(m)
+        self.sweep_rl_c(m)
+
+    def save_all(self):
+        for m in self.measurements:
+            m.save()
+
+
+class LRCMeasurement(object):
+
+    def __init__(self, name, wafer=''):
+        self.wafer = wafer
+        self.name = name
+        self.z = {}
+        self.cd = {}
+        self.cq = {}
+        self.cesr_g = {}
+        self.ld = {}
+        self.lq = {}
+        self.lesr_g = {}
+        self.rx_b = {}
+        self.rl_c = {}
+
+    def __str__(self):
+        return self.wafer + '_' + self.name
+
+    def __repr__(self):
+        return self.__str__()
+
+    def save(self):
+        with open(self.wafer + '_' + self.name + '.csv', 'w') as csvfile:
+            fieldnames = ['Frequency', 'f', '|Z|', unichr(0x3b8).encode('utf-8'), 'L1', 'D (L)', 'L2', 'Q (L)', 'L3',
+                          'ESR/G (L)', 'C1', 'D (C)', 'C2', 'Q (C)', 'C3', 'ESR/G (C)', 'R1', 'X/B', 'R2', 'L/C']
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+            writer.writeheader()
+            for freq in self.z.keys():
+                f = int(filter(str.isdigit, freq))
+                if 'M' in freq:
+                    f = f * 1000
+                writer.writerow({'Frequency': freq, 'f': f, '|Z|': self.z[freq][0],
+                                 unichr(0x3b8).encode('utf-8'): self.z[freq][1], 'L1': self.ld[freq][0],
+                                 'D (L)': self.ld[freq][1], 'L2': self.lq[freq][0], 'Q (L)': self.lq[freq][1],
+                                 'L3': self.lesr_g[freq][0], 'ESR/G (L)': self.lesr_g[freq][1],
+                                 'C1': self.cd[freq][0], 'D (C)': self.cd[freq][1], 'C2': self.cq[freq][0],
+                                 'Q (C)': self.cq[freq][1], 'C3': self.cesr_g[freq][0],
+                                 'ESR/G (C)': self.cesr_g[freq][1], 'R1': self.rx_b[freq][0],
+                                 'X/B': self.rx_b[freq][1], 'R2': self.rl_c[freq][0], 'L/C': self.rl_c[freq][1]})
