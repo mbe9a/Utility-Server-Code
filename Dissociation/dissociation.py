@@ -95,7 +95,7 @@ class SpectrumDataParameter(object):
 """
 class SpectrumDataFile(object):
 
-    def __init__(self, filepath, data_range=(740, 765), peaks=(741, 752.5), spacing=6.5):
+    def __init__(self, filepath, data_range=(740, 765), peaks=(740.5, 752.5), spacing=6.5):
         if filepath[-4:] != ".txt":
             raise ValueError("Invalid File Extension")
         elif not os.path.isfile(filepath):
