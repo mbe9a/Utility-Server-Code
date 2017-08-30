@@ -377,7 +377,7 @@ class SpectrumDataSet(dict):
             degree - the degree of fitting polynomial   
     """
     def plot_dissociation(self, ax=None, save=False, ind_var='current', spectrum=False,
-                          shadow=False, f=-1, region1=741, region2=752.5, spacing=6.5, fit=False, degree=5,
+                          shadow=False, f=-1, region1=740.5, region2=752.5, spacing=6.5, fit=False, degree=5,
                           labeloverride=None):
         # get selected spectrum data file
         sdf = sorted(self.keys(), key=lambda spec: spec.power.value)[f]
