@@ -332,7 +332,7 @@ class LCRMeter(object):
             m.save()
 
 
-class LRCMeasurement(object):
+class LCRMeasurement(object):
 
     def __init__(self, name, wafer=''):
         self.wafer = wafer
