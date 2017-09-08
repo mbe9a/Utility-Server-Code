@@ -51,7 +51,7 @@ sweep_MHz = [1, 2, 4, 10]
 
 class LCRMeter(object):
 
-    def __init__(self, saddress, ip='http://128.143.100.6', paddress=0, timeout = 5000):
+    def __init__(self, saddress, ip='128.143.100.6', paddress=0, timeout=5000):
         self.inst = vxi11.Instrument(ip, 'gpib' + str(paddress) + ',' + str(saddress))
         self.inst.timeout = timeout
         self.measurements = {}
