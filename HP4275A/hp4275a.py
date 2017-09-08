@@ -4,7 +4,7 @@ UVML
 August 2017
 """
 
-import visa
+import vxi11
 import csv
 
 display_combos = {'A1B1': 'L - D', 'A1B2': 'L - Q', 'A1B3': 'L - ESR/G', 'A2B1': 'C - D', 'A2B2': 'C - Q',
@@ -51,10 +51,9 @@ sweep_MHz = [1, 2, 4, 10]
 
 class LCRMeter(object):
 
-    def __init__(self):
-        rm = visa.ResourceManager()
-        self.inst = rm.open_resource('GPIB0::17::INSTR')
-        self.inst.timeout = 5000
+    def __init__(self, saddress, ip='http://128.143.100.6', paddress=0, timeout = 5000):
+        self.inst = vxi11.Instrument(ip, 'gpib' + str(paddress) + ',' + str(saddress))
+        self.inst.timeout = timeout
         self.measurements = {}
 
     def new_measurement(self, name, wafer=''):
@@ -64,8 +63,8 @@ class LCRMeter(object):
     def change_display(self, combination, p=True):
         code = 'A' + str(combination[0]) +'B' + str(combination[1])
         if code in display_combos.keys():
-            self.inst.query('A' + str(combination[0]))
-            self.inst.query('B' + str(combination[1]))
+            self.inst.ask('A' + str(combination[0]))
+            self.inst.ask('B' + str(combination[1]))
             if p:
                 print display_combos[code]
         else:
@@ -80,7 +79,7 @@ class LCRMeter(object):
             s = 'C3'
         else:
             raise ValueError("Invalid argument ('auto', 'series', or 'parallel').")
-        self.inst.query(s)
+        self.inst.ask(s)
         print circuit_mode[s]
 
     # These program codes can not be used if reference data is not stored
@@ -93,7 +92,7 @@ class LCRMeter(object):
             s = 'D2'
         else:
             raise ValueError("Invalid argument ('off', 'delta', or 'delta%').")
-        self.isnt.query(s)
+        self.isnt.ask(s)
         print deviation_measurement[s]
 
     def frequency_step(self, args, p=True):
@@ -129,7 +128,7 @@ class LCRMeter(object):
             s = 'F22'
         else:
             raise ValueError("Invalid arg.")
-        self.inst.query(s)
+        self.inst.ask(s)
         if p:
             print frequency_step[s]
 
@@ -140,7 +139,7 @@ class LCRMeter(object):
             s = 'H1'
         else:
             raise ValueError("Invalid arg ('off' or 'on).")
-        self.inst.query(s)
+        self.inst.ask(s)
         print high_resolution[s]
 
     # If Data Ready is set to ON, SRQ signal is outputted when measurement data is provided.
@@ -151,7 +150,7 @@ class LCRMeter(object):
             s = 'I1'
         else:
             raise ValueError("Invalid arg ('off' or 'on).")
-        self.inst.query(s)
+        self.inst.ask(s)
         print data_ready[s]
 
     def multiplier(self, arg):
@@ -163,7 +162,7 @@ class LCRMeter(object):
             s = 'M3'
         else:
             raise ValueError('Allowed values: 0.01, 0.1, and 1.')
-        self.inst.query(s)
+        self.inst.ask(s)
         print multiplier[s]
 
     # depends on DISPLAY A, DISPLAY B and Measuring Frequency settings:
@@ -199,12 +198,12 @@ class LCRMeter(object):
             for key in lcrz_range.keys():
                 print lcrz_range[key]
             raise ValueError()
-        self.inst.query(s)
+        self.inst.ask(s)
         print lcrz_range[s]
 
     # This program code can not be used if reference data is not stored.
     def recall_ref_value(self):
-        print self.inst.query('RE').strip()
+        print self.inst.ask('RE').strip()
 
     def self_test(self, arg):
         if arg == 'off':
@@ -213,11 +212,11 @@ class LCRMeter(object):
             s = 'S1'
         else:
             raise ValueError("Arg is either 'off' or 'on'")
-        self.inst.query(s)
+        self.inst.ask(s)
         print self_test[s]
 
     def store_ref_value(self):
-        self.inst.query('ST')
+        self.inst.ask('ST')
 
     # When external trigger is used, set the 4275a to local by pressing the LOCAL key
     def trigger(self, arg):
@@ -229,7 +228,7 @@ class LCRMeter(object):
             s = 'T3'
         else:
             raise ValueError("Allowed args: 'int', 'ext', and 'hold' or 'manual'.")
-        self.inst.query(s)
+        self.inst.ask(s)
         print trigger[s]
 
     def zero(self, arg):
@@ -239,16 +238,16 @@ class LCRMeter(object):
             s = 'ZS'
         else:
             raise ValueError("Allowed args: 'open' and 'short'.")
-        self.inst.query(s)
+        self.inst.ask(s)
         print zero[s]
 
     # This program code is used to trigger the instrument
     def execute(self):
-        self.inst.query('E')
+        self.inst.ask('E')
 
     # This program code can be used to recognize the state of key settings.
     def key_state_out(self):
-        rstr = self.inst.query('K').strip()
+        rstr = self.inst.ask('K').strip()
         print 'Display Combination: ' + display_combos[rstr[:4]]
         print 'Circuit Mode: ' + circuit_mode[rstr[4:6]]
         print 'Deviation Measurement: ' + deviation_measurement[rstr[6:8]]
@@ -261,7 +260,7 @@ class LCRMeter(object):
         print 'Trigger: ' + trigger[rstr[22:24]]
 
     def output_display(self):
-        rstr = self.inst.query('C')
+        rstr = self.inst.ask('C')
         formatted1 = float(rstr.split(',')[0][5:])
         formatted2 = float(rstr.split(',')[1][2:])
         # looks really dumb but this prevents outputting a negative zero
