@@ -281,38 +281,74 @@ class LCRMeter(object):
         return values
 
     def sweep_z(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+    	else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((4, 1), p=False)
         m.z = self.sweep()
 
     def sweep_cd(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((2, 1), p=False)
         m.cd = self.sweep()
 
     def sweep_cq(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+    	else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((2, 2), p=False)
         m.cq = self.sweep()
 
     def sweep_cesr_g(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((2, 3), p=False)
         m.cesr_g = self.sweep()
 
     def sweep_ld(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((1, 1), p=False)
         m.ld = self.sweep()
 
     def sweep_lq(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((1, 2), p=False)
         m.lq = self.sweep()
 
     def sweep_lesr_g(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((1, 3), p=False)
         m.lesr_g = self.sweep()
 
     def sweep_rx_b(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((3, 1), p=False)
         m.rx_b = self.sweep()
 
     def sweep_rl_c(self, m):
+    	if m in self.measurements:
+    		m = self.measurements[m]
+        else:
+    		raise ValueError("Measurement doesn't exist.")
         self.change_display((3, 2), p=False)
         m.rl_c = self.sweep()
 
@@ -338,7 +374,7 @@ class LCRMeasurement(object):
         self.wafer = wafer
         self.name = name
         self.z = {}
-        self.cd = {}
+        self.cd = {}m
         self.cq = {}
         self.cesr_g = {}
         self.ld = {}
