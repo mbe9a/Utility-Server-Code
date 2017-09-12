@@ -374,7 +374,7 @@ class LCRMeasurement(object):
         self.wafer = wafer
         self.name = name
         self.z = {}
-        self.cd = {}m
+        self.cd = {}
         self.cq = {}
         self.cesr_g = {}
         self.ld = {}
