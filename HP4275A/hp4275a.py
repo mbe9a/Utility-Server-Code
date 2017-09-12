@@ -57,7 +57,7 @@ class LCRMeter(object):
         self.measurements = {}
 
     def new_measurement(self, name, wafer=''):
-        m = LRCMeasurement(name, wafer=wafer)
+        m = LCRMeasurement(name, wafer=wafer)
         self.measurements[m.name] = m
 
     def change_display(self, combination, p=True):
