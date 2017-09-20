@@ -331,7 +331,7 @@ class SpectrumDataSet(dict):
 
     # this function reads a directory of spectrum data text files, populates the dict of this class
     # and writes a csv file
-    def compile_dataset(self):
+    def compile_dataset(self, save=True, fname=None):
         self.clear()
         if not os.path.exists(self.path):
             raise ValueError("Path does not exist.")
@@ -341,18 +341,31 @@ class SpectrumDataSet(dict):
                 os.remove('output.csv')
             except OSError:
                 pass
-            with open("output.csv", "w") as output:
-                # I thought csv's would be better than a text file, but I can change it to whatever
-                # reading and writing csv's is also much nicer
-                writer = csv.DictWriter(output, fieldnames=["Pressure (mTorr)", "Power (W)", "Current (A)", "Ratio"])
+            if not fname:
+                n = 'output.csv'
+            else:
+                n = fname
+            if save:
+                with open(n, "w") as output:
+                    # I thought csv's would be better than a text file, but I can change it to whatever
+                    # reading and writing csv's is also much nicer
+                    writer = csv.DictWriter(output, fieldnames=["Pressure (mTorr)", "Power (W)", "Current (A)", "Ratio"])
+                    for f in files:
+                        if f.endswith(".txt"):
+                            # create a SpectrumDataFile object with each file
+                            sdf = SpectrumDataFile(self.path + "/" + f)
+                            writer.writeheader()
+                            # write all the values to the csv file
+                            writer.writerow({"Pressure (mTorr)": sdf.pressure.value, "Power (W)": sdf.power.value,
+                                             "Current (A)": sdf.current.value, "Ratio": sdf.dissociation})
+                            # add the dict entry to the object
+                            sdf.data_points = sdf.parse_spectral_data()
+                            self[sdf] = sdf.data_points
+            else:
                 for f in files:
                     if f.endswith(".txt"):
                         # create a SpectrumDataFile object with each file
                         sdf = SpectrumDataFile(self.path + "/" + f)
-                        writer.writeheader()
-                        # write all the values to the csv file
-                        writer.writerow({"Pressure (mTorr)": sdf.pressure.value, "Power (W)": sdf.power.value,
-                                         "Current (A)": sdf.current.value, "Ratio": sdf.dissociation})
                         # add the dict entry to the object
                         sdf.data_points = sdf.parse_spectral_data()
                         self[sdf] = sdf.data_points
@@ -443,6 +456,24 @@ class SpectrumDataSet(dict):
             plt.savefig(name)
         else:
             plt.savefig("output")
+
+
+class RDCalculator(object):
+
+    def __init__(self, path):
+        self.dataset = SpectrumDataSet(path)
+        self.dataset.compile_dataset(save=False)
+
+    def save(self, fname=None):
+        if fname:
+            n = fname
+        else:
+            n = 'output.csv'
+        with open(n, 'w') as output:
+            writer = csv.DictWriter(output, fieldnames=['File Name', 'RD'])
+            writer.writeheader()
+            for sdf in self.dataset:
+                writer.writerow({'File Name': sdf.filename, 'RD': sdf.dissociation})
 
 
 if __name__ == "__main__":
