@@ -11,6 +11,8 @@ import csv
 from statsmodels.nonparametric.smoothers_lowess import lowess
 from shutil import copyfile
 
+plt.style.use('bmh')
+
 
 # helper function to print polynomial fit
 def print_polynomial(p):
@@ -110,6 +112,10 @@ class SpectrumDataFile(object):
         self.power = SpectrumDataParameter(convert_to_float(self.filename.split("_")[0].split("W")[0]), "W")
         self.pressure = SpectrumDataParameter(convert_to_float(self.filename.split("_")[1].split("m")[0]), "mTorr")
         self.current = SpectrumDataParameter(convert_to_float(self.filename.split("_")[2].split("A")[0]), "A")
+        if self.filename.split("_")[3]:
+        	self.time = SpectrumDataParameter(int(self.filename.split("_")[3][:-7]), "min")
+        else:
+        	self.time = None
 
         self.dataname = str(self.power) + ", " + str(self.pressure) + ", " + str(self.current)
 
@@ -349,14 +355,14 @@ class SpectrumDataSet(dict):
                 with open(n, "w") as output:
                     # I thought csv's would be better than a text file, but I can change it to whatever
                     # reading and writing csv's is also much nicer
-                    writer = csv.DictWriter(output, fieldnames=["Pressure (mTorr)", "Power (W)", "Current (A)", "Ratio"])
+                    writer = csv.DictWriter(output, fieldnames=["Time (min)", "Pressure (mTorr)", "Power (W)", "Current (A)", "Ratio"])
+                    writer.writeheader()
                     for f in files:
                         if f.endswith(".txt"):
                             # create a SpectrumDataFile object with each file
                             sdf = SpectrumDataFile(self.path + "/" + f)
-                            writer.writeheader()
                             # write all the values to the csv file
-                            writer.writerow({"Pressure (mTorr)": sdf.pressure.value, "Power (W)": sdf.power.value,
+                            writer.writerow({"Time (min)": sdf.time.value, "Pressure (mTorr)": sdf.pressure.value, "Power (W)": sdf.power.value,
                                              "Current (A)": sdf.current.value, "Ratio": sdf.dissociation})
                             # add the dict entry to the object
                             sdf.data_points = sdf.parse_spectral_data()
@@ -391,7 +397,7 @@ class SpectrumDataSet(dict):
     """
     def plot_dissociation(self, ax=None, save=False, ind_var='current', spectrum=False,
                           shadow=False, f=-1, region1=740.5, region2=752.5, spacing=6.5, fit=False, degree=5,
-                          labeloverride=None):
+                          labeloverride=None, xlim=None, ylim=None, pattern='.-'):
         # get selected spectrum data file
         sdf = sorted(self.keys(), key=lambda spec: spec.power.value)[f]
 
@@ -410,7 +416,11 @@ class SpectrumDataSet(dict):
                 sdf.plot_difference(ax2)
         else:
             ax3 = ax
-        ax3.set_title("Relative Dissociation")
+        ax3.set_title("Relative Dissociation vs " + ind_var.title())
+        if xlim:
+        	ax3.set_xlim(xlim)
+        if ylim:
+        	ax3.set_ylim(ylim)
         if ind_var == 'current':
             ax3.set_xlabel("Current (A)")
             points = sorted([(x.current.value, x.dissociation) for x in self.keys()])
@@ -423,6 +433,10 @@ class SpectrumDataSet(dict):
             ax3.set_xlabel("Pressure (mTorr)")
             points = sorted([(x.pressure.value, x.dissociation) for x in self.keys()])
             label = str(self.keys()[0].power) + " " + str(self.keys()[0].current)
+        elif ind_var == 'time':
+        	ax3.set_xlabel("Time (min)")
+        	points = sorted([(x.time.value, x.dissociation) for x in self.keys()])
+        	label = str(self.keys()[0].power) + " " + str(self.keys()[0].current)
         else:
             raise ValueError("Incorrect independent variable name.")
         ax3.set_ylabel("Relative Dissociation")
@@ -431,7 +445,7 @@ class SpectrumDataSet(dict):
         if labeloverride is not None:
             label = labeloverride
         if not fit:
-            ax3.plot(xs, ys, '.-', label=label)
+            ax3.plot(xs, ys, pattern, label=label)
         else:
             c = ax3.plot(xs, ys, '^', label=label)
             xp = np.linspace(np.min(xs), np.max(xs), 100)
@@ -443,37 +457,6 @@ class SpectrumDataSet(dict):
         plt.tight_layout()
         if save:
             plt.savefig("output")
-
-    # a little redundant
-    def save_dissociation_plot(self, name=False):
-        points = sorted([(x.current.value, x.dissociation) for x in self.keys()])
-        plt.figure()
-        plt.title("Dissociation")
-        plt.xlabel("Current (A)")
-        plt.ylabel("Ratio")
-        plt.plot([x[0] for x in points], [x[1] for x in points])
-        if name:
-            plt.savefig(name)
-        else:
-            plt.savefig("output")
-
-
-class RDCalculator(object):
-
-    def __init__(self, path):
-        self.dataset = SpectrumDataSet(path)
-        self.dataset.compile_dataset(save=False)
-
-    def save(self, fname=None):
-        if fname:
-            n = fname
-        else:
-            n = 'output.csv'
-        with open(n, 'w') as output:
-            writer = csv.DictWriter(output, fieldnames=['File Name', 'RD'])
-            writer.writeheader()
-            for sdf in self.dataset:
-                writer.writerow({'File Name': sdf.filename, 'RD': sdf.dissociation})
 
 
 if __name__ == "__main__":
