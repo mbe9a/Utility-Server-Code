@@ -112,10 +112,10 @@ class SpectrumDataFile(object):
         self.power = SpectrumDataParameter(convert_to_float(self.filename.split("_")[0].split("W")[0]), "W")
         self.pressure = SpectrumDataParameter(convert_to_float(self.filename.split("_")[1].split("m")[0]), "mTorr")
         self.current = SpectrumDataParameter(convert_to_float(self.filename.split("_")[2].split("A")[0]), "A")
-        if self.filename.split("_")[3]:
+        if len(self.filename.split("_")) > 3:
         	self.time = SpectrumDataParameter(int(self.filename.split("_")[3][:-7]), "min")
         else:
-        	self.time = None
+        	self.time = SpectrumDataParameter('N/A', 'min')
 
         self.dataname = str(self.power) + ", " + str(self.pressure) + ", " + str(self.current)
 
