@@ -175,8 +175,10 @@ class SpectrumDataFile(object):
             if line[0] == ">":
                 line = datafile.readline()
 
-            while line:
+            if hex(ord(line[0])) == '0xd' and hex(ord(line[1])) == '0xa':
+                return
 
+            while line:
                 # split the line on tabs and convert to float
                 # adds a tuple (wavelength, intensity) to data_points
                 data_point = (float(line.split("\t")[0]), float(line.split("\t")[1].split("\r")[0]))
@@ -308,10 +310,12 @@ class SpectrumDataFile(object):
 
     # calculates the two integrals of the major peaks, takes the difference, and computes the ratio
     def calculate_dissociation(self, scaling=0.91, *args, **kwargs):
+        if self.data_points is None:
+            return
         integral1 = np.trapz([x[1] for x in self.get_range(self.peaks[0],
-                                                           self.peaks[0] + self.spacing)], *args, **kwargs)
+                                                       self.peaks[0] + self.spacing)], *args, **kwargs)
         integral2 = np.trapz([x[1] for x in self.get_range(self.peaks[1],
-                                                           self.peaks[1] + self.spacing)], *args, **kwargs) * scaling
+                                                       self.peaks[1] + self.spacing)], *args, **kwargs) * scaling
         return np.abs(integral1 - integral2) / integral2
 
 
@@ -397,7 +401,7 @@ class SpectrumDataSet(dict):
     """
     def plot_dissociation(self, ax=None, save=False, ind_var='current', spectrum=False,
                           shadow=False, f=-1, region1=740.5, region2=752.5, spacing=6.5, fit=False, degree=5,
-                          labeloverride=None, xlim=None, ylim=None, pattern='.-'):
+                          labeloverride=None, xlim=None, ylim=None, pattern='.-', missing_time=None):
         # get selected spectrum data file
         sdf = sorted(self.keys(), key=lambda spec: spec.power.value)[f]
 
@@ -445,7 +449,15 @@ class SpectrumDataSet(dict):
         if labeloverride is not None:
             label = labeloverride
         if not fit:
-            ax3.plot(xs, ys, pattern, label=label)
+            # if missing_time and ind_var == 'time':
+            #     ys1 = ys[:missing_time[0]-1]
+            #     xs1 = xs[:missing_time[0]-1]
+            #     ys2 = ys[missing_time[1]:]
+            #     xs2 = xs[missing_time[1]:]
+            #     ax3.plot(xs1, ys1, pattern, label=label + ' Run 1')
+            #     ax3.plot(xs2, ys2, pattern, label=label + ' Run 2')
+            # else:
+                ax3.plot(xs, ys, pattern, label=label)
         else:
             c = ax3.plot(xs, ys, '^', label=label)
             xp = np.linspace(np.min(xs), np.max(xs), 100)
