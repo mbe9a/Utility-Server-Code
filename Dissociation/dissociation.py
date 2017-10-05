@@ -117,7 +117,7 @@ class SpectrumDataFile(object):
         else:
         	self.time = SpectrumDataParameter('N/A', 'min')
 
-        self.dataname = str(self.power) + ", " + str(self.pressure) + ", " + str(self.current)
+        self.dataname = str(self.power) + ", " + str(self.pressure) + ", " + str(self.current) + ", " + str(self.time)
 
         self.data_points = self.parse_spectral_data()
         self.dissociation = self.calculate_dissociation()
@@ -399,9 +399,9 @@ class SpectrumDataSet(dict):
             fit - can plot just points and a poly fit
             degree - the degree of fitting polynomial   
     """
-    def plot_dissociation(self, ax=None, save=False, ind_var='current', spectrum=False,
-                          shadow=False, f=-1, region1=740.5, region2=752.5, spacing=6.5, fit=False, degree=5,
-                          labeloverride=None, xlim=None, ylim=None, pattern='.-', missing_time=None):
+    def plot_dissociation(self, ax=None, ind_var='current', spectrum=False, shadow=False, 
+        f=-1, region1=740.5, region2=752.5, spacing=6.5, fit=False, degree=5, labeloverride=None, 
+        xlim=None, ylim=None, pattern='.-', **kwargs):
         # get selected spectrum data file
         sdf = sorted(self.keys(), key=lambda spec: spec.power.value)[f]
 
@@ -420,7 +420,10 @@ class SpectrumDataSet(dict):
                 sdf.plot_difference(ax2)
         else:
             ax3 = ax
+
         ax3.set_title("Relative Dissociation vs " + ind_var.title())
+        ax3.set_ylabel("Relative Dissociation")
+        
         if xlim:
         	ax3.set_xlim(xlim)
         if ylim:
@@ -443,23 +446,15 @@ class SpectrumDataSet(dict):
         	label = str(self.keys()[0].power) + " " + str(self.keys()[0].current)
         else:
             raise ValueError("Incorrect independent variable name.")
-        ax3.set_ylabel("Relative Dissociation")
+        
         xs = [x[0] for x in points]
         ys = [x[1] for x in points]
         if labeloverride is not None:
             label = labeloverride
         if not fit:
-            # if missing_time and ind_var == 'time':
-            #     ys1 = ys[:missing_time[0]-1]
-            #     xs1 = xs[:missing_time[0]-1]
-            #     ys2 = ys[missing_time[1]:]
-            #     xs2 = xs[missing_time[1]:]
-            #     ax3.plot(xs1, ys1, pattern, label=label + ' Run 1')
-            #     ax3.plot(xs2, ys2, pattern, label=label + ' Run 2')
-            # else:
-                ax3.plot(xs, ys, pattern, label=label)
+                ax3.plot(xs, ys, pattern, label=label, **kwargs)
         else:
-            c = ax3.plot(xs, ys, '^', label=label)
+            c = ax3.plot(xs, ys, pattern, label=label, **kwargs)
             xp = np.linspace(np.min(xs), np.max(xs), 100)
             p = np.poly1d(np.polyfit(xs, ys, degree))
             ax3.plot(xp, p(xp), '-', label='Poly Fit: ' + label, color=c[0].get_color())
@@ -467,12 +462,100 @@ class SpectrumDataSet(dict):
         ax3.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
         plt.tight_layout()
-        if save:
-            plt.savefig("output")
 
+def errorbar(datasets, ax=None, save=False, ind_var='current', region1=740.5, region2=752.5, spacing=6.5,
+                    labeloverride=None, xlim=None, ylim=None, capthick=0, capcolor='black', **kwargs):
+
+    # change all the files to the specified param values
+    for dataset in datasets:
+        for spec in dataset.keys():
+            spec.peaks = (region1, region2)
+            spec.spacing = spacing
+
+    for x in range(1, len(datasets)):
+        if len(datasets[0].keys()) == len(datasets[x].keys()):
+            continue
+        else:
+            raise ValueError("Spectrum Data Set Objects are not the same length.")
+
+    D = {}
+    for x in range(0, len(datasets)):
+        for y in range(0, len(datasets[x].keys())):
+            key = datasets[x].keys()[y].time.value
+            if key not in D.keys():
+                D[key] = []
+            D[key].append(datasets[x].keys()[y].dissociation)
+    
+    Davg = D.copy()
+    Dmax = D.copy()
+    Dmin = D.copy()
+    for key in D.keys():
+        Davg[key] = 0
+        for x in range(0, len(datasets)):
+            Davg[key] += D[key][x]
+        Davg[key] /= len(datasets)
+        Dmin[key] = min(D[key])
+        Dmax[key] = max(D[key])
+
+    if ax is None:
+        plt.figure(figsize=(10, 6))
+        ax3 = plt.gca()
+    else:
+        ax3 = ax
+
+    ax3.set_title("Relative Dissociation vs " + ind_var.title())
+    ax3.set_ylabel("Relative Dissociation")
+    
+    if xlim:
+        ax3.set_xlim(xlim)
+    if ylim:
+        ax3.set_ylim(ylim)
+    if ind_var == 'current':
+        ax3.set_xlabel("Current (A)")
+        points = sorted([(x.current.value, x.dissociation) for x in datasets[0].keys()])
+        label = str(datasets[0].keys()[0].power) + " " + str(datasets[0].keys()[0].pressure)
+    elif ind_var == 'power':
+        ax3.set_xlabel("Power (W)")
+        points = sorted([(x.power.value, x.dissociation) for x in datasets[0].keys()])
+        label = str(datasets[0].keys()[0].current) + " " + str(datasets[0].keys()[0].pressure)
+    elif ind_var == 'pressure':
+        ax3.set_xlabel("Pressure (mTorr)")
+        points = sorted([(x.pressure.value, x.dissociation) for x in datasets[0].keys()])
+        label = str(datasets[0].keys()[0].power) + " " + str(datasets[0].keys()[0].current)
+    elif ind_var == 'time':
+        ax3.set_xlabel("Time (min)")
+        points = sorted([(x.time.value, x.dissociation) for x in datasets[0].keys()])
+        label = str(datasets[0].keys()[0].power) + " " + str(datasets[0].keys()[0].current)
+    else:
+        raise ValueError("Incorrect independent variable name.")
+    
+    if labeloverride is not None:
+        label = labeloverride
+
+    x = []
+    y = []
+    yerr_min = []
+    yerr_max = []
+
+    for i in range(0, len(D.keys())):
+        x.append(D.keys()[i])
+        y.append(Davg[D.keys()[i]])
+        yerr_min.append(np.abs(Dmin[D.keys()[i]] - Davg[D.keys()[i]]))
+        yerr_max.append(Dmax[D.keys()[i]] - Davg[D.keys()[i]])
+
+    (_, caps, _) = ax3.errorbar(x, y, yerr=[yerr_min, yerr_max], label=label, **kwargs)
+
+    for cap in caps:
+        cap.set_color(capcolor)
+        cap.set_markeredgewidth(capthick)
+
+    ax3.margins(0.05)
+    ax3.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    plt.tight_layout()
+
+    return D
 
 if __name__ == "__main__":
-    # if you run this file as a script, the code under this section will be executed
-    # a good place to put test code
     pass
 
