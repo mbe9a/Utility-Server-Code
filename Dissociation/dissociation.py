@@ -481,7 +481,14 @@ def errorbar(datasets, ax=None, save=False, ind_var='current', region1=740.5, re
     D = {}
     for x in range(0, len(datasets)):
         for y in range(0, len(datasets[x].keys())):
-            key = datasets[x].keys()[y].time.value
+            if ind_var == 'time':
+                key = datasets[x].keys()[y].time.value
+            elif ind_var == 'current':
+                key = datasets[x].keys()[y].current.value
+            elif ind_var == 'power':
+                key = datasets[x].keys()[y].power.value
+            elif ind_var == 'pressure':
+                key = datasets[x].keys()[y].pressure.value
             if key not in D.keys():
                 D[key] = []
             D[key].append(datasets[x].keys()[y].dissociation)
